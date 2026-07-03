@@ -1,16 +1,19 @@
-from pydantic import BaseSettings
-from typing import Optional
-import os
+from pydantic_settings import BaseSettings
+from typing import List
+
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./candidate_screening.db"
-    gemini_api_key: str
+    gemini_api_key: str = ""
     backend_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:5173"
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: str = "http://localhost:5173"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
-    settings = Settings()
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [o.strip() for o in self.cors_origins.split(",")]
+
+
+settings = Settings()

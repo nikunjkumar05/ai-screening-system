@@ -1,2 +1,11 @@
-
 AI_ML & Backend Intern Assignment.pdf
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.db
+uploads/
+node_modules/
+dist/
+.vite/
+*.log

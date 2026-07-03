@@ -25,6 +25,7 @@ class InterviewSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    role = Column(String, nullable=False)
     start_time = Column(DateTime, default=datetime.utcnow)
     end_time = Column(DateTime, nullable=True)
     overall_score = Column(Float, nullable=True)
