@@ -1,0 +1,216 @@
+﻿=== PAGE 1 ===
+PGAGI
+ 
+AI/ML  &  Backend  Intern  Assignment  
+ Role:  AI/ML  &  Backend  Engineering  Intern  Duration:  48  Hours  from  Assignment  Receipt  
+Submission  
+Candidates  are  required  to  submit:  
+ÔùÅ  A  complete  GitHub  repository  ÔùÅ  A  demo  video  (mandatory)  demonstrating  the  working  system  end-to-end  
+ 
+1.  Objective  
+This  assignment  is  designed  to  evaluate  your  ability  to  design  and  implement  a  real-world  
+intelligent
+ 
+system
+ 
+that
+ 
+integrates:
+ 
+ÔùÅ  Applied  AI/ML  concepts  (specifically  Retrieval-Augmented  Generation)  ÔùÅ  Backend  system  design  and  API  architecture  ÔùÅ  Frontend  interaction  and  user  experience  ÔùÅ  Data  handling  and  system  flow  management  
+The  expectation  is  not  just  correctness,  but  clarity  of  thought,  architectural  decisions,  and  
+system
+ 
+design
+ 
+maturity
+.
+ 
+ 
+2.  Problem  Statement  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  1  
+
+
+=== PAGE 2 ===
+PGAGI
+ 
+You  are  required  to  build  an  AI-powered  role-based  candidate  screening  system.  
+The  system  should  simulate  a  structured  technical  interview  where  questions  are  not  predefined  
+but
+ 
+instead
+ 
+are
+ 
+dynamically
+ 
+generated
+ 
+based
+ 
+on
+ 
+ÔùÅ  The  candidateÔÇÖs  resume  ÔùÅ  The  selected  job  role  ÔùÅ  A  role-specific  knowledge  base  (textbook/corpus)  
+ 
+3.  Expected  System  Flow  
+ ÔùÅ  Your  system  should  support  the  following  flow:  ÔùÅ  Candidate  Entry  Ôùï  User  uploads  their  resume  (PDF  or  text)  Ôùï  User  selects  a  target  role  (e.g.,  Backend  Engineer,  AI/ML  Engineer)  ÔùÅ  Resume  Processing  Ôùï  The  system  parses  the  resume  Ôùï  Extracts  relevant  information  such  as:  Ôûá  Skills  Ôûá  Technologies  Ôûá  Domain  exposure  (if  possible)  ÔùÅ  Context  Construction  Ôùï  Based  on  the  selected  role  and  extracted  resume  data:  Ôûá  Generate  meaningful  queries  Ôûá  Identify  relevant  topics  or  domains  to  evaluate  ÔùÅ  Knowledge  Retrieval  (RAG)  Ôùï  Query  a  role-specific  knowledge  base  Ôùï  Retrieve  the  most  relevant  content  chunks  Ôùï  Ensure  the  retrieved  context  is  meaningful  and  grounded  ÔùÅ  Question  Generation  Ôùï  Generate  interview  questions  using  the  retrieved  context  Ôùï  Questions  should:  Ôûá  Be  relevant  to  the  role  Ôûá  Be  influenced  by  the  candidateÔÇÖs  background  Ôûá  Reflect  conceptual  and/or  applied  understanding  ÔùÅ  Interactive  Interview  Ôùï  Candidate  answers  questions  through  the  UI  Ôùï  System  maintains  session  continuity  Ôùï  Questions  may  adapt  based  on  previous  responses  (optional  but  valuable)  ÔùÅ  Response  Handling  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  2 
+
+=== PAGE 3 ===
+PGAGI
+ 
+Ôùï  Store  candidate  responses  Ôùï  Maintain  structured  records  of:  Ôûá  Questions  asked  Ôûá  Answers  given  ÔùÅ  Final  Output  Ôùï  Display  a  structured  summary  of  the  interaction  Ôùï  Provide  basic  insights  or  analysis  of  the  session   
+4.  System  Architecture  Expectations  
+You  are  expected  to  build  a  complete,  modular  system ,  not  a  single  script.  
+Frontend  
+ÔùÅ  Implemented  using  React  or  Next.js  ÔùÅ  Should  provide:  Ôùï  Resume  upload  interface  Ôùï  Role  selection  Ôùï  Interview  interaction  flow  Ôùï  Results  or  summary  view  
+Backend  
+ÔùÅ  Implemented  using  Python  (FastAPI  or  Flask  recommended)  ÔùÅ  Should  be  responsible  for:  Ôùï  Handling  all  business  logic  Ôùï  Managing  interview  sessions  Ôùï  Orchestrating  the  AI/ML  pipeline  Ôùï  Interfacing  with  storage  systems  
+Data  Layer  
+ÔùÅ  A  database  must  be  used  for  persistence  ÔùÅ  The  system  should  store:  Ôùï  Session  data  Ôùï  Questions  and  answers  Ôùï  Any  generated  outputs  or  reports  
+System  Design  
+ÔùÅ  Code  should  be  modular  and  structured  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  3 
+
+=== PAGE 4 ===
+PGAGI
+ 
+ÔùÅ  Separation  of  concerns  is  expected  ÔùÅ  Configuration  should  be  handled  through  environment  variables  
+ 
+5.  Backend  &  API  Design  Expectations  
+The  backend  should  be  designed  as  a  well-structured  service  layer  that  exposes  functionality  
+required
+ 
+by
+ 
+the
+ 
+frontend.
+ 
+Rather  than  focusing  on  specific  endpoints,  emphasis  should  be  placed  on:  
+ÔùÅ  Clear  separation  of  responsibilities  ÔùÅ  Logical  API  design  and  request  flow  ÔùÅ  Proper  handling  of  different  stages  of  the  interview  lifecycle  ÔùÅ  Robust  error  handling  and  validation  ÔùÅ  Maintainable  and  scalable  code  structure  
+The  system  should  reflect  how  a  real-world  backend  would  be  designed  to  support  such  an  
+application.
+ 
+ 
+6.  AI/ML  Requirements  (Core  Focus)  
+This  is  a  critical  component  of  the  assignment.  
+You  are  expected  to  implement  a  Retrieval-Augmented  Generation  (RAG)  pipeline  with  clear  
+reasoning
+ 
+behind
+ 
+your
+ 
+design
+ 
+choices.
+ 
+ 
+7.1  Knowledge  Ingestion  
+ÔùÅ  Load  and  process  role-specific  documents  ÔùÅ  Implement  a  chunking  strategy  ÔùÅ  Generate  embeddings  ÔùÅ  Store  them  in  a  vector  database  
+Your  choices  here  should  reflect  an  understanding  of:  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  4 
+
+=== PAGE 5 ===
+PGAGI
+ 
+ÔùÅ  Context  preservation  ÔùÅ  Retrieval  efficiency  
+ 
+7.2  Retrieval  Mechanism  
+ÔùÅ  Construct  queries  dynamically  based  on:  Ôùï  Resume  content  Ôùï  Role  selection  ÔùÅ  Retrieve  relevant  information  from  the  knowledge  base  ÔùÅ  Ensure  retrieved  content  is  actually  useful  for  downstream  tasks  
+ 
+7.3  Question  Generation  
+ÔùÅ  Generate  questions  using  the  retrieved  context  ÔùÅ  Avoid  generic  or  template-driven  outputs  ÔùÅ  Questions  should  reflect:  Ôùï  Depth  Ôùï  Relevance  Ôùï  Context  awareness  
+ 
+7.4  Resume  Utilisation  
+ÔùÅ  A  resume  should  meaningfully  influence  the  following:  Ôùï  Topic  selection  Ôùï  Question  difficulty  Ôùï  Direction  of  interview  
+ 
+7.5  Output  Structuring  
+ÔùÅ  Maintain  a  structured  pipeline:  Ôùï  Context  ÔåÆ  Question  ÔåÆ  Answer  ÔåÆ  Storage  ÔùÅ  Ensure  traceability  of  how  questions  were  generated  
+ 
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  5 
+
+=== PAGE 6 ===
+PGAGI
+ 
+7.  Frontend  Expectations  
+The  frontend  should  not  just  be  functional  but  should  clearly  demonstrate  the  following:  
+ÔùÅ  Integration  with  backend  services  ÔùÅ  Smooth  user  interaction  flow  ÔùÅ  State  handling  across  the  interview  process  
+The  UI  should  make  the  system  easy  to  use  and  clearly  reflect  the  different  stages  of  the  
+interaction.
+ 
+ 
+8.  Creativity  &  Extensions  
+This  assignment  is  intentionally  open-ended  in  several  areas.  
+Candidates  are  encouraged  to  introduce  their  own  ideas  to  improve  the  systemÔÇöwhether  in  
+terms
+ 
+of:
+ 
+ÔùÅ  Question  formats  ÔùÅ  Interaction  design  ÔùÅ  System  intelligence  ÔùÅ  User  experience  ÔùÅ  Evaluation  logic  
+Stronger  submissions  typically  go  beyond  the  baseline  implementation  and  demonstrate  
+thoughtful
+ 
+enhancements.
+ 
+ 
+9.  Knowledge  Base  Resources  
+Candidates  are  expected  to  use  the  provided  book  as  the  primary  knowledge  source  for  RAG  
+implementation
+,
+ 
+not
+ 
+generic
+ 
+internet
+ 
+queries
+ 
+AI  /  Machine  Learning  Role  
+Machine  Learning  ÔÇö  Tom  Mitchell  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  6 
+
+=== PAGE 7 ===
+PGAGI
+ 
+Download  PDF 
+The  Hundred-Page  Machine  Learning  Book  ÔÇö  Andriy  Burkov  
+Download  PDF 
+ 
+Machine  Learning  for  Absolute  Beginners  
+Download  PDF 
+ 
+Data  Science  /  Applied  ML  Role  
+Introduction  to  Machine  Learning  with  Python  
+Download  PDF 
+Master  Machine  Learning  Algorithms  ÔÇö  Jason  Brownlee  
+Download  PDF 
+ 
+Advanced  /  Theoretical  ML  (Optional  for  Strong  Candidates)  
+Pattern  Recognition  and  Machine  Learning  ÔÇö  Christopher  Bishop  
+Download  PDF 
+Artificial  Intelligence,  Machine  Learning  &  Deep  Learning  
+Download  PDF 
+ 
+   
+10.  Deliverables  
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  7 
+
+=== PAGE 8 ===
+PGAGI
+ 
+Repository  
+ÔùÅ  Clean  and  well-structured  codebase  ÔùÅ  Proper  README  including:  Ôùï  Setup  instructions  Ôùï  System  architecture  Ôùï  Key  design  decisions  
+Demo  Video  (Mandatory)  
+The  video  should  clearly  demonstrate:  
+ÔùÅ  Complete  system  flow  ÔùÅ  Key  features  ÔùÅ  How  different  components  interact  
+ 
+11.  Final  Note  
+This  assignment  is  designed  to  assess  your  ability  to:  
+ÔùÅ  Build  integrated  AI-driven  systems  ÔùÅ  Think  in  terms  of  architecture  and  data  flow  ÔùÅ  Make  practical  engineering  decisions  under  constraints  
+Clarity,  structure,  and  reasoning  will  carry  as  much  weight  as  implementation.  
+ 
+AI/ML  &  Backend  Engineering  Intern  Assignment  |  8 
+
