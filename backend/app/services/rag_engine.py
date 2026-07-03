@@ -1,110 +1,133 @@
 from typing import List, Dict, Any, Optional
-import numpy as np
-import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import lancedb
 
 load_dotenv()
 
-KB_DIR = Path(__file__).parent.parent.parent / "knowledge_base"
+# LanceDB stores data on disk — no more .npy files
+LANCEDB_DIR = Path(__file__).parent.parent.parent.parent / "lancedb_data"
 
-# Lazy client — only initialized when actually needed
-_client = None
+# Lazy client
+_gemini_client = None
+_lance_db: Optional[lancedb.DBConnection] = None
 
 
-def _get_client():
-    global _client
-    if _client is None:
+def _get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None:
         from google.genai import Client
         api_key = os.getenv("GEMINI_API_KEY", "")
         if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY not found. "
-                "Set it in the .env file or as an environment variable."
-            )
-        _client = Client(api_key=api_key)
-    return _client
+            raise ValueError("GEMINI_API_KEY not set in environment")
+        _gemini_client = Client(api_key=api_key)
+    return _gemini_client
+
+
+def _get_lance_db() -> lancedb.DBConnection:
+    global _lance_db
+    if _lance_db is None:
+        LANCEDB_DIR.mkdir(parents=True, exist_ok=True)
+        _lance_db = lancedb.connect(str(LANCEDB_DIR))
+    return _lance_db
 
 
 class RAGEngine:
     def __init__(self, role: str):
         self.role = role
-        self.documents: List[Dict[str, Any]] = []
-        self.embeddings: np.ndarray = np.array([])
-        self._load_if_exists()
+        self.table_name = self._table_name()
 
-    def _embeddings_path(self) -> Path:
-        role_key = self.role.lower().replace(" ", "_").replace("/", "-")
-        return KB_DIR / "embeddings" / f"{role_key}_embeddings.npy"
+    def _table_name(self) -> str:
+        return self.role.lower().replace(" ", "_").replace("/", "_")
 
-    def _metadata_path(self) -> Path:
-        role_key = self.role.lower().replace(" ", "_").replace("/", "-")
-        return KB_DIR / "embeddings" / f"{role_key}_metadata.json"
+    def _get_table(self):
+        db = _get_lance_db()
+        try:
+            return db.open_table(self.table_name)
+        except Exception:
+            return None
 
-    def _load_if_exists(self):
-        emb_path = self._embeddings_path()
-        meta_path = self._metadata_path()
-        if emb_path.exists() and meta_path.exists():
-            self.embeddings = np.load(str(emb_path))
-            with open(meta_path, "r", encoding="utf-8") as f:
-                self.documents = json.load(f)
-
-    def save(self):
-        emb_path = self._embeddings_path()
-        meta_path = self._metadata_path()
-        emb_path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(str(emb_path), self.embeddings)
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump(self.documents, f, indent=2)
+    def _table_exists(self) -> bool:
+        db = _get_lance_db()
+        return self.table_name in db.list_tables()
 
     def add_document(self, text: str, source: str, page: Optional[int] = None):
-        self.documents.append({"text": text, "source": source, "page": page})
+        """Add a single document (used during ingestion, not live)."""
+        db = _get_lance_db()
+        table = self._get_table()
+        row = {
+            "text": text,
+            "source": source or "",
+            "page": page or 0,
+        }
+        if table is None:
+            # first document — create table with dummy vector to infer schema
+            import numpy as np
+            row["vector"] = np.zeros(768).tolist()
+            db.create_table(self.table_name, [row], mode="overwrite")
+        else:
+            table.add([row])
 
     async def build_embeddings(self):
-        client = _get_client()
-        texts = [d["text"] for d in self.documents]
-        embeddings = []
-        for t in texts:
+        """Embed all documents in the table and update vectors."""
+        db = _get_lance_db()
+        table = self._get_table()
+        if table is None:
+            return
+
+        client = _get_gemini_client()
+        data = table.to_pandas().to_dict("records")
+
+        vectors = []
+        for row in data:
             response = await client.aio.models.embed_content(
                 model="text-embedding-004",
-                contents=t,
+                contents=row["text"],
             )
-            embeddings.append(response.embeddings[0].values)
-        self.embeddings = np.array(embeddings)
-        self.save()
+            vectors.append(response.embeddings[0].values)
 
-    async def embed_query(self, text: str) -> np.ndarray:
-        client = _get_client()
+        # rebuild table with real vectors
+        for i, row in enumerate(data):
+            row["vector"] = vectors[i]
+
+        db.create_table(self.table_name, data, mode="overwrite")
+
+    async def embed_query(self, text: str) -> list:
+        client = _get_gemini_client()
         response = await client.aio.models.embed_content(
             model="text-embedding-004",
             contents=text,
         )
-        return np.array(response.embeddings[0].values)
-
-    def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
-        return float(
-            np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2) + 1e-10)
-        )
+        return response.embeddings[0].values
 
     async def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        if len(self.documents) == 0:
+        table = self._get_table()
+        if table is None:
             return []
-        query_emb = await self.embed_query(query)
-        scores = []
-        for i, doc_emb in enumerate(self.embeddings):
-            sim = self.cosine_similarity(query_emb, doc_emb)
-            scores.append((i, sim))
-        scores.sort(key=lambda x: x[1], reverse=True)
-        results = []
-        for i, score in scores[:top_k]:
-            results.append({**self.documents[i], "score": float(score)})
-        return results
+
+        query_vector = await self.embed_query(query)
+        results = (
+            table.search(query_vector)
+            .limit(top_k)
+            .select(["text", "source", "page"])
+            .to_list()
+        )
+
+        return [
+            {
+                "text": r.get("text", ""),
+                "source": r.get("source", ""),
+                "page": r.get("page", 0),
+                "score": r.get("_distance", 0),
+            }
+            for r in results
+        ]
 
     async def generate_answer(
         self, query: str, context_chunks: List[Dict[str, Any]]
     ) -> str:
-        client = _get_client()
+        client = _get_gemini_client()
         if context_chunks:
             context = "\n\n".join(
                 f"[Source: {c.get('source', 'unknown')}] {c.get('text', '')}"
