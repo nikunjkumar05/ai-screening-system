@@ -4,7 +4,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import List
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -26,7 +27,10 @@ from .schemas import (
     AnswerResponse,
     QARecord,
     SessionSummary,
+    UserSignup,
+    Token
 )
+from .auth import get_password_hash, verify_password, create_access_token, get_current_user
 from .services.resume_parser import ResumeParserService
 from .services.rag_engine import RAGEngine
 from .services.interview_manager import InterviewManager
@@ -101,9 +105,9 @@ def list_candidates(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 # Session CRUD
 # ---------------------------------------------------------------------------
 
-@app.get("/sessions/", response_model=List[SessionResponse])
-def list_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    sessions = db.query(models.InterviewSession).offset(skip).limit(limit).all()
+@app.get("/sessions/history", response_model=List[SessionResponse])
+def get_user_history(db: Session = Depends(get_db), current_user: models.Candidate = Depends(get_current_user)):
+    sessions = db.query(models.InterviewSession).filter_by(candidate_id=current_user.id).order_by(models.InterviewSession.start_time.desc()).all()
     return [
         SessionResponse(
             id=s.id,
@@ -113,10 +117,40 @@ def list_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
             end_time=s.end_time,
             overall_score=s.overall_score,
             status=s.status,
+            current_question=5 if s.status == "completed" else 1,
         )
         for s in sessions
     ]
 
+
+@app.post("/auth/signup", status_code=201, response_model=CandidateResponse)
+def signup(user: UserSignup, db: Session = Depends(get_db)):
+    existing_user = db.query(models.Candidate).filter(models.Candidate.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_pwd = get_password_hash(user.password)
+    new_candidate = models.Candidate(
+        name=user.name,
+        email=user.email,
+        hashed_password=hashed_pwd
+    )
+    db.add(new_candidate)
+    db.commit()
+    db.refresh(new_candidate)
+    return new_candidate
+
+@app.post("/auth/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.Candidate).filter(models.Candidate.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # ---------------------------------------------------------------------------
 # Resume upload
@@ -125,10 +159,9 @@ def list_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 @app.post("/upload-resume", status_code=201)
 async def upload_resume(
     file: UploadFile = File(...),
-    name: str = Form(...),
-    email: str = Form(...),
     role: str = Form(...),
     db: Session = Depends(get_db),
+    current_user: models.Candidate = Depends(get_current_user)
 ):
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -142,32 +175,19 @@ async def upload_resume(
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
     file_path.write_bytes(content)
 
-    info = await resume_parser.process_resume(str(file_path), safe_name)
+    profile = await resume_parser.process_resume(str(file_path), safe_name)
+    current_user.resume_path = str(file_path)
+    current_user.skills = profile.get("skills", "")
+    current_user.experience_years = profile.get("experience_years", 0)
+    current_user.education = profile.get("education", "")
+    current_user.profile_summary = profile.get("profile_summary", "")
+    current_user.phone = profile.get("phone", current_user.phone)
+    current_user.location = profile.get("location", current_user.location)
 
-    db_candidate = models.Candidate(
-        name=name,
-        email=email,
-        phone=info.get("phone", ""),
-        location=info.get("location", ""),
-        experience_years=info.get("experience_years", 0),
-        education=info.get("education", ""),
-        skills=info.get("skills", ""),
-        resume_path=str(file_path),
-        profile_summary=info.get("profile_summary", ""),
-    )
-    db.add(db_candidate)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        # clean up uploaded file
-        file_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=409,
-            detail=f"Candidate with email '{email}' already exists",
-        )
-    db.refresh(db_candidate)
-    return {"candidate_id": db_candidate.id, "profile": info}
+    db.commit()
+    db.refresh(current_user)
+
+    return {"candidate_id": current_user.id, "profile": profile}
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +195,13 @@ async def upload_resume(
 # ---------------------------------------------------------------------------
 
 @app.post("/sessions/start", response_model=SessionResponse, status_code=201)
-async def start_session(session_data: SessionCreate, db: Session = Depends(get_db)):
+async def start_session(
+    session_data: SessionCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.Candidate = Depends(get_current_user)
+):
+    if session_data.candidate_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to start session for this candidate")
     candidate = db.query(models.Candidate).filter_by(id=session_data.candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -185,13 +211,21 @@ async def start_session(session_data: SessionCreate, db: Session = Depends(get_d
         role=session_data.role,
         start_time=datetime.utcnow(),
         status="in_progress",
+        difficulty=session_data.difficulty,
+        question_count=session_data.question_count,
+        time_limit=session_data.time_limit,
     )
     db.add(db_session)
     db.commit()
     db.refresh(db_session)
 
     rag = RAGEngine(role=session_data.role)
-    manager = InterviewManager(rag, db)
+    manager = InterviewManager(
+        rag_engine=rag, 
+        db=db, 
+        base_difficulty=session_data.difficulty, 
+        question_count=session_data.question_count
+    )
     active_sessions[db_session.id] = (rag, manager, [])
 
     return SessionResponse(
@@ -201,6 +235,9 @@ async def start_session(session_data: SessionCreate, db: Session = Depends(get_d
         start_time=db_session.start_time,
         status=db_session.status,
         current_question=1,
+        difficulty=db_session.difficulty,
+        question_count=db_session.question_count,
+        time_limit=db_session.time_limit,
     )
 
 
@@ -297,7 +334,8 @@ async def submit_answer(
     if chunk_info is not None:
         chunk_info["score"] = score
 
-    is_last = len(qa_history) >= 5
+    db_session = db.query(models.InterviewSession).filter_by(id=session_id).first()
+    is_last = len(qa_history) >= db_session.question_count
 
     result = AnswerResponse(
         question_id=db_qa.id,
@@ -310,7 +348,6 @@ async def submit_answer(
     )
 
     if is_last:
-        db_session = db.query(models.InterviewSession).filter_by(id=session_id).first()
         db_session.end_time = datetime.utcnow()
         db_session.status = "completed"
         all_qa = db.query(models.QuestionAnswer).filter_by(session_id=session_id).all()
@@ -337,7 +374,8 @@ async def get_session_summary(session_id: int, db: Session = Depends(get_db)):
         try:
             chunk_info = json.loads(qa.evaluation or "{}")
             if isinstance(chunk_info, dict):
-                source_chunks = chunk_info.get("source_chunks", [])
+                raw_chunks = chunk_info.get("source_chunks", [])
+                source_chunks = [c.get("text", str(c)) if isinstance(c, dict) else str(c) for c in raw_chunks]
         except (json.JSONDecodeError, TypeError):
             pass
         questions.append(
@@ -351,13 +389,18 @@ async def get_session_summary(session_id: int, db: Session = Depends(get_db)):
         )
 
     rag = RAGEngine(role=db_session.role)
+    transcript = ""
+    for idx, q in enumerate(questions, 1):
+        transcript += f"Q{idx}: {q.question}\nA: {q.answer}\nScore: {q.score}/100\n\n"
+
     insights_prompt = (
-        f"Analyze this {db_session.role} interview for {candidate.name}. "
-        f"Overall score: {db_session.overall_score}. "
-        f"Provide 2-3 brief insights about the candidate's strengths "
+        f"Analyze this {db_session.role} interview for {candidate.name}.\n"
+        f"Overall score: {db_session.overall_score}/100.\n"
+        f"Interview Transcript:\n{transcript}\n"
+        f"Based on the transcript above, provide 2-3 brief insights about the candidate's strengths "
         f"and areas for improvement."
     )
-    insights = await rag.generate_answer(insights_prompt, [])
+    insights = await rag.generate_answer(insights_prompt, None)
 
     return SessionSummary(
         session_id=session_id,

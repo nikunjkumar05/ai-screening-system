@@ -10,6 +10,7 @@ class Candidate(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True)
+    hashed_password = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     location = Column(String, nullable=True)
     experience_years = Column(Integer, nullable=True)
@@ -30,6 +31,9 @@ class InterviewSession(Base):
     end_time = Column(DateTime, nullable=True)
     overall_score = Column(Float, nullable=True)
     status = Column(String, default="in_progress")
+    difficulty = Column(String, default="Mid-Level")
+    question_count = Column(Integer, default=5)
+    time_limit = Column(Integer, default=120)
 
     candidate = relationship("Candidate", back_populates="sessions")
     question_answers = relationship("QuestionAnswer", back_populates="session")

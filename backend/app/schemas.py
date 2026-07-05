@@ -2,6 +2,15 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+class UserSignup(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
 
 class CandidateCreate(BaseModel):
     name: str
@@ -25,6 +34,9 @@ class CandidateResponse(CandidateCreate):
 class SessionCreate(BaseModel):
     candidate_id: int
     role: str
+    difficulty: str = "Mid-Level"
+    question_count: int = 5
+    time_limit: int = 120
 
 
 class SessionResponse(BaseModel):
@@ -36,6 +48,9 @@ class SessionResponse(BaseModel):
     overall_score: Optional[float] = None
     status: str
     current_question: int = 1
+    difficulty: str = "Mid-Level"
+    question_count: int = 5
+    time_limit: int = 120
 
     class Config:
         from_attributes = True

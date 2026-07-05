@@ -10,3 +10,9 @@ node_modules/
 dist/
 .vite/
 *.log
+venv/
+temp_deploy/
+books/
+app.tar.gz
+pgagi_demo.mp4
+backend/candidates.db
