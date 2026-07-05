@@ -402,6 +402,11 @@ async def get_session_summary(session_id: int, db: Session = Depends(get_db)):
     )
     insights = await rag.generate_answer(insights_prompt, None)
 
+    import re
+    insights = re.sub(r'\n(?=\*\*Strengths)', '\n\n', insights)
+    insights = re.sub(r'\n(?=\*\*Areas for Improvement)', '\n\n', insights)
+    insights = re.sub(r'\n(?=\d+\. )', '\n\n', insights)
+
     return SessionSummary(
         session_id=session_id,
         candidate_name=candidate.name,
